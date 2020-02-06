@@ -17,15 +17,19 @@ import javax.xml.bind.DatatypeConverter;
 
 public class PutFile {
 
-    private static final String TAG = "PUTFILE";
-    private static boolean CREATE_DIRS = false;
-    private static boolean FORCE_OVERWRITE = false;
-    private static int WAIT_READ = 30000;
-    private static int CONN_TIMEOUT = 30000;
     public String TOKEN;
-
+    private static final String TAG = "PUTFILE";
+    private static final int MAX_TIMEOUT = 120;    
+    private static boolean createDirs = false;
+    private static boolean forceOverwrite = false;
+    private static int waitRead = 30000;
+    private static int connTimeout = 30000;
+    private boolean argsValid = true;
+    private String urlStr;
+    private String filePath;
+    
     // DEBUG
-    public static void main(String[] args) throws Exception {
+    public static void main( String[] args) throws Exception {
         // Usage: putfile <URL> <full path>
         // Small file (450KB):
         // https://homepages.cae.wisc.edu/~ece533/images/airplane.png
@@ -36,23 +40,20 @@ public class PutFile {
 
         String[] args2 = {
                 "https://effigis.com/wp-content/uploads/2015/02/Airbus_Pleiades_50cm_8bit_RGB_Yogyakarta.jpg",
-                "/home/parsons/tmp/output2.jpg" };
-        System.exit(entryPoint(args2));
+                "/home/parsons/tmp/tmp/tmpb/output2.jpg",                                
+                "--force"};
+        PutFile putfile = new PutFile();        
+        System.exit(putfile.entryPoint(args2));
     }
     //END DEBUG
 
-    public static int entryPoint(String[] args) throws NoSuchAlgorithmException {
-        /*
-            TODO: Args
-            Usage: putfile [-p --parent] [-f --force] [-w --wait N] [-t --timeout N]
-                -p --parent    Create target directory structure if it doesn't exist.  Overrides default behavior.
-                -f --force     Overwrite file if a file of the same name already exists.  Overides default behavior.
-                -w --wait      Time, in seconds, to wait for additional data when connection is interrupted.  Default: 30
-                -t --timeout   Time, in seconds, to wait for an initial connection to be established.  Defualt: 30
-        */        
+    public int entryPoint(String[] args) throws NoSuchAlgorithmException {       
         HttpURLConnection urlConnection = null;
-        String urlStr = args[0];
-        String filePath = args[1];
+        parseArgs(args);
+        if (!argsValid) {
+            return 1;
+        }
+        
         // Test to make sure the write path is a valid location
         if (!testPath(filePath)) {
             return 1;
@@ -64,8 +65,8 @@ public class PutFile {
         }
         // Set timeout values for connection and for read operation
         // Default 30 seconds
-        urlConnection.setConnectTimeout(CONN_TIMEOUT);
-        urlConnection.setReadTimeout(WAIT_READ);
+        urlConnection.setConnectTimeout(connTimeout);
+        urlConnection.setReadTimeout(waitRead);
         // Download File
         byte[] dlFile = downloadFile(urlConnection);
         if (dlFile == null) {
@@ -78,12 +79,147 @@ public class PutFile {
         return 0;
     }
 
-    public static boolean testPath(String path) {
+    public void parseArgs(String[] args){
+        /*
+        String usage = "Usage: putfile <targetURL> <savePath> [-p --parent] [-f --force] [-w --wait N] [-t --timeout N]\n" +
+                "\t-p --parent    Create target directory structure if it doesn't exist.  Overrides default behavior.\n" +
+                "\t-f --force     Overwrite file if a file of the same name already exists.  Overides default behavior.\n" +
+                "\t-w --wait      Time, in seconds, to wait for additional data when connection is interrupted.  Default: 30, max 120.\n" +
+                "\t-t --timeout   Time, in seconds, to wait for an initial connection to be established.  Defualt: 30, max 120.\n" +
+                "Example: putfile www.website.com/something.png /home/user/Downloads/something.png -p --force -w 45 --timeout 45";
+        */        
+        urlStr = args[0];
+        filePath = args[1];
+        int duration = 0;
+        if (args.length > 2) {
+            for(int i = 2; i < args.length; i++) {
+                switch(args[i].charAt(0)) {
+                    case '-':
+                        if (args[i].length() < 2) {
+                            Log.e(TAG, String.format("Invalid argument: %s",args[i])); 
+                            argsValid = false;
+                            return;                       
+                        }
+                        switch(args[i].charAt(1)) {
+                            case '-':
+                                if (args[i].length() < 3) {
+                                    Log.e(TAG, String.format("Invalid argument: %s", args[i]));
+                                    argsValid = false;
+                                    return;
+                                }
+                                switch(args[i].replaceAll("[^a-zA-Z]", "")){
+                                    case "parent":
+                                        createDirs = true;
+                                        break;
+                                    case "force":
+                                        forceOverwrite = true;
+                                        break;
+                                    case "wait":                                    
+                                        duration = checkIntArg(args[i] + 1);                                
+                                        if (duration == -1) {
+                                            argsValid = false;
+                                            return;
+                                        }
+                                        connTimeout = duration;
+                                        i++;
+                                        break;
+                                    case "timeout":                                    
+                                        duration = checkIntArg(args[i] +1);
+                                        if (duration == -1) {
+                                            argsValid = false;
+                                            return;
+                                        }
+                                        waitRead = duration;
+                                        i++;
+                                        break;
+                                    default:
+                                        Log.e(TAG, "Unrecognized option provided");
+                                        argsValid = false;
+                                        return;
+                                }
+                                break;
+                            case 'p':
+                                if (args[i].length() > 2) {
+                                    Log.e(TAG, String.format("Unrecognized option: %s", args[i]));
+                                    argsValid = false;
+                                    return;
+                                }
+                                createDirs = true;
+                                break;
+                            case 'f':
+                            if (args[i].length() > 2) {
+                                Log.e(TAG, String.format("Unrecognized option: %s", args[i]));
+                                argsValid = false;
+                                return;
+                            }    
+                                forceOverwrite = true;
+                                break;
+                            case 'w':
+                                if (args[i].length() > 2) {
+                                    Log.e(TAG, String.format("Unrecognized option: %s", args[i]));
+                                    argsValid = false;
+                                    return;
+                                }
+                                duration = checkIntArg(args[i] + 1);                                
+                                if (duration == -1) {
+                                    argsValid = false;
+                                    return;
+                                }
+                                waitRead = duration;   
+                                i++;                         
+                                break;
+                            case 't':
+                                if (args[i].length() > 2) {
+                                    Log.e(TAG, String.format("Unrecognized option: %s", args[i]));
+                                    argsValid = false;
+                                    return;
+                                }
+                                duration = checkIntArg(args[i] + 1);                                
+                                if (duration == -1) {
+                                    argsValid = false;
+                                    return;
+                                }
+                                connTimeout = duration;                        
+                                i++;
+                                break;
+                            default:
+                                Log.e(TAG, String.format("Unrecognized option %s",args[i]));
+                                argsValid = false;
+                                return;
+                        }
+                        break;
+                    default:
+                        Log.e(TAG, String.format("Unrecognized option %s",args[i]));
+                        argsValid = false;
+                        return;
+                        
+                }
+            }
+        }
+    }
+    private int checkIntArg(String arg){
+        int duration = -1;
+        try {
+            duration = Integer.parseInt(arg);
+        }
+        catch (NumberFormatException e) {
+            Log.e(TAG, String.format("The value %s provided to the --wait option is invalid.", arg + 1));
+        }
+        if (duration <= MAX_TIMEOUT) {
+            waitRead = duration;
+        } else {
+            Log.e(TAG, String.format("The value %d provided to the --wait option exceeds 120 seconds.",duration));            
+            duration = -1;            
+        }
+        return duration;
+    }
+
+    public boolean testPath( String path) {
         File tmpDir = new File(path);
         // Check to see if this file already exists
         if (tmpDir.exists()) {
             Log.i(TAG, String.format("%s already exists.", path));
-            if (!FORCE_OVERWRITE) {
+            if (!forceOverwrite) {
                 return false;
             }
         }
@@ -93,7 +229,7 @@ public class PutFile {
         if (!tmpDir2.exists()) {            
             Log.i(TAG, "Target directory does not exist.");            
             // Try to create target directory
-            if (!CREATE_DIRS) {
+            if (!createDirs) {
                 return false;
             }
             if (!tmpDir2.mkdirs()) {
@@ -111,7 +247,7 @@ public class PutFile {
         return true;
     }
 
-    public static HttpURLConnection doHttpConnect(String urlStr, HttpURLConnection urlConnection){
+    public HttpURLConnection doHttpConnect(String urlStr, HttpURLConnection urlConnection){
         URL url = null;                
         try {
             url = new URL(urlStr);
@@ -129,7 +265,7 @@ public class PutFile {
         return urlConnection;
     }
 
-    public static byte[] downloadFile(HttpURLConnection urlConnection) throws NoSuchAlgorithmException {
+    public byte[] downloadFile(HttpURLConnection urlConnection) throws NoSuchAlgorithmException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         InputStream in = null;
         int nRead = 0;            
@@ -179,7 +315,7 @@ public class PutFile {
         return buffer.toByteArray();
     }
 
-    public static boolean writeFile(String path, byte[] file){        
+    public boolean writeFile(String path, byte[] file){        
         FileOutputStream out = null;
         boolean success = true;
         try {
