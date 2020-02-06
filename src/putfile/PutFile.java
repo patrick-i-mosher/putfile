@@ -15,15 +15,20 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import javax.xml.bind.DatatypeConverter;
 
-public class PutFile {
+public class PutFile implements Runnable{
 
     public String TOKEN;
+    public int putFileTaskState = 0;
     private static final String TAG = "PUTFILE";
-    private static final int MAX_TIMEOUT = 120;    
+    private static final int MAX_TIMEOUT = 120;
+    static final int FILESYSTEM_ERROR = 1;
+    static final int HTTP_CONNECTION_ERROR = 2;
+    static final int FILE_DOWNLOAD_ERROR = 3;
+    static final int WRITE_FILE_ERROR = 4;        
     private static boolean createDirs = false;
     private static boolean forceOverwrite = false;
-    private static int waitRead = 30000;
-    private static int connTimeout = 30000;
+    private static int waitRead = 30000; // 30 seconds
+    private static int connTimeout = 30000; // 30 seconds
     private boolean argsValid = true;
     private String urlStr;
     private String filePath;
@@ -40,43 +45,54 @@ public class PutFile {
 
         String[] args2 = {
                 "https://effigis.com/wp-content/uploads/2015/02/Airbus_Pleiades_50cm_8bit_RGB_Yogyakarta.jpg",
-                "/home/parsons/tmp/tmp/tmpb/output2.jpg",                                
-                "--force"};
+                "/home/parsons/tmp/tmp/tmpb/output2.jpg",      
+                "-p",
+                "-f",                          
+                "-w",
+                "5"};
         PutFile putfile = new PutFile();        
         System.exit(putfile.entryPoint(args2));
     }
     //END DEBUG
 
-    public int entryPoint(String[] args) throws NoSuchAlgorithmException {       
-        HttpURLConnection urlConnection = null;
+    public int entryPoint(String[] args) throws NoSuchAlgorithmException {
         parseArgs(args);
         if (!argsValid) {
             return 1;
-        }
-        
+        }                
+        return 0;
+    }
+
+@Override
+    public void run(){
         // Test to make sure the write path is a valid location
         if (!testPath(filePath)) {
-            return 1;
+            putFileTaskState = FILESYSTEM_ERROR;
+            return;
         }
         // Connect to URL
-        urlConnection = doHttpConnect(urlStr, urlConnection);
+        HttpURLConnection urlConnection = doHttpConnect(urlStr);
         if (urlConnection == null) {
-            return 1;
+            putFileTaskState = HTTP_CONNECTION_ERROR;            
+            return;
         }
-        // Set timeout values for connection and for read operation
-        // Default 30 seconds
-        urlConnection.setConnectTimeout(connTimeout);
-        urlConnection.setReadTimeout(waitRead);
         // Download File
-        byte[] dlFile = downloadFile(urlConnection);
+        byte[] dlFile = null;
+        try {
+            dlFile = downloadFile(urlConnection);
+        } catch (NoSuchAlgorithmException e) {
+            // Unable to generate MD5, NBD
+            Log.w(TAG, String.format("Unable to generate MD5 digest: %s",e));
+        }
         if (dlFile == null) {
-            return 1;
+            putFileTaskState = FILE_DOWNLOAD_ERROR;            
+            return;
         }
         // Write file to local storage
         if (!writeFile(filePath, dlFile)) {
-            return 1;
+            putFileTaskState = WRITE_FILE_ERROR;
+            return;
         }
-        return 0;
     }
 
     public void parseArgs(String[] args){
@@ -115,21 +131,21 @@ public class PutFile {
                                         forceOverwrite = true;
                                         break;
                                     case "wait":                                    
-                                        duration = checkIntArg(args[i] + 1);                                
+                                        duration = checkIntArg(args[i + 1]);                                
                                         if (duration == -1) {
                                             argsValid = false;
                                             return;
                                         }
-                                        connTimeout = duration;
+                                        connTimeout = duration * 1000;
                                         i++;
                                         break;
                                     case "timeout":                                    
-                                        duration = checkIntArg(args[i] +1);
+                                        duration = checkIntArg(args[i + 1]);
                                         if (duration == -1) {
                                             argsValid = false;
                                             return;
                                         }
-                                        waitRead = duration;
+                                        waitRead = duration * 1000;
                                         i++;
                                         break;
                                     default:
@@ -160,12 +176,12 @@ public class PutFile {
                                     argsValid = false;
                                     return;
                                 }
-                                duration = checkIntArg(args[i] + 1);                                
+                                duration = checkIntArg(args[i + 1]);                                
                                 if (duration == -1) {
                                     argsValid = false;
                                     return;
                                 }
-                                waitRead = duration;   
+                                waitRead = duration * 1000;   
                                 i++;                         
                                 break;
                             case 't':
@@ -174,12 +190,12 @@ public class PutFile {
                                     argsValid = false;
                                     return;
                                 }
-                                duration = checkIntArg(args[i] + 1);                                
+                                duration = checkIntArg(args[i + 1]);                                
                                 if (duration == -1) {
                                     argsValid = false;
                                     return;
                                 }
-                                connTimeout = duration;                        
+                                connTimeout = duration * 1000;                        
                                 i++;
                                 break;
                             default:
@@ -203,12 +219,10 @@ public class PutFile {
             duration = Integer.parseInt(arg);
         }
         catch (NumberFormatException e) {
-            Log.e(TAG, String.format("The value %s provided to the --wait option is invalid.", arg + 1));
+            Log.e(TAG, String.format("The value %s provided to the option is invalid.", arg + 1));
         }
-        if (duration <= MAX_TIMEOUT) {
-            waitRead = duration;
-        } else {
-            Log.e(TAG, String.format("The value %d provided to the --wait option exceeds 120 seconds.",duration));            
+        if (duration > MAX_TIMEOUT) {
+            Log.e(TAG, String.format("The value %d provided to the option exceeds 120 seconds.",duration));            
             duration = -1;            
         }
         return duration;
@@ -247,7 +261,8 @@ public class PutFile {
         return true;
     }
 
-    public HttpURLConnection doHttpConnect(String urlStr, HttpURLConnection urlConnection){
+    public HttpURLConnection doHttpConnect(String urlStr){
+        HttpURLConnection urlConnection;
         URL url = null;                
         try {
             url = new URL(urlStr);
@@ -259,8 +274,11 @@ public class PutFile {
             urlConnection = (HttpURLConnection) url.openConnection();
         }
         catch (IOException e) {
-            Log.e(TAG, String.format("Unable to establish connection to %s: %s", urlStr, e));            
+            Log.e(TAG, String.format("Unable to establish connection to %s: %s", urlStr, e));  
+            return null;          
         }
+        urlConnection.setConnectTimeout(connTimeout);
+        urlConnection.setReadTimeout(waitRead);      
         Log.i(TAG, String.format("Successfully connected to %s, proceeding with download", urlStr));
         return urlConnection;
     }
