@@ -15,30 +15,49 @@ public class Test {
     private static String[] largeFileArgs = {
         "https://effigis.com/wp-content/uploads/2015/02/Airbus_Pleiades_50cm_8bit_RGB_Yogyakarta.jpg",
         "/home/parsons/tmp/largeFileTest.jpg" };
-    private static String[] createDirsSuccessArgs = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
-        "/home/parsons/tmp/smallFileTest.png", "-p" };    
-    private static String[] fileOverwriteSuccessArgs = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
+    private static String[] createDirsSuccess = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
+        "/home/parsons/tmp/smallFileTest.png", "-p", "-f" };    
+    private static String[] createDirsFail = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
+        "/home/parsons/tmp/newDir/smallFileTest.png"};
+    private static String[] fileOverwriteSuccess = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
         "/home/parsons/tmp/smallFileTest.png", "-f" };
-    private static String[] setWaitTestSuccessArgs = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
+    private static String[] setWaitSuccess = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
         "/home/parsons/tmp/smallFileTest.png", "-w", "10" };
-    private static String[] setTimeoutTestSuccessArgs = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
+    private static String[] setTimeoutSuccess = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
         "/home/parsons/tmp/smallFileTest.png", "-t", "10" };
     private static String[] badArgs1 = { "Some Garbage" };
-    private static String[] badArgs2 = { "https://www.wickerpedia.com/basket.png, /home/parsons/tmp/badArgs.png" };
-    private static String[] badArgs3 = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
+    private static String[] notEnoughArgs = {"https://www.google.com"};
+    private static String[] badUrl = { "https://www.wickerpedia.com/basket.png", "/home/parsons/tmp/badArgs.png" };
+    private static String[] wOptionNoArg = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
         "/home/parsons/tmp/badArgsTest.png", "-w" };
-    private static String[] badArgs4 = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
+    private static String[] tOptionNoArg = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
         "/home/parsons/tmp/badArgsTest.png", "-t" };
-    private static String[] badArgs5 = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
-        "/home/parsons/tmp/badArgsTest.png", "-w", "130" };
+    private static String[] setWaitFail = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
+        "/home/parsons/tmp/waitFail.png", "-w", "130" };
+    private static String[] setTimeoutFail = { "https://homepages.cae.wisc.edu/~ece533/images/airplane.png",
+        "/home/parsons/tmp/waitFail.png", "-t", "130" };
 
     public Test() {                  
-        unitTestList.add(createTest("basicTestNoFlags", noOptionsTestArgs, 5));
-        unitTestList.add(createTest("mediumFileTest", mediumFileArgs, 5));
-        unitTestList.add(createTest("largeFileTest", largeFileArgs, 5));
-        unitTestList.add(createTest("createDirsTestSuccess", createDirsSuccessArgs, 5));
-        unitTestList.add(createTest("createDirsTestFail", noOptionsTestArgs, 1));
-        unitTestList.add(createTest("fileOverwriteSuccess",fileOverwriteSuccessArgs, 5));
+        
+        unitTestList.add(createTest("basicTestNoFlags", noOptionsTestArgs, 6));
+        unitTestList.add(createTest("fileOeverwriteFail",noOptionsTestArgs, 1));        
+        unitTestList.add(createTest("mediumFileTest", mediumFileArgs, 6));
+        unitTestList.add(createTest("largeFileTest", largeFileArgs, 6));
+        unitTestList.add(createTest("createDirsTestFail", createDirsFail, 1));
+        unitTestList.add(createTest("createDirsTestSuccess", createDirsSuccess, 6));        
+        unitTestList.add(createTest("fileOverwriteSuccess",fileOverwriteSuccess, 6));        
+        unitTestList.add(createTest("setWaitTestSuccess", setWaitSuccess, 6));
+        unitTestList.add(createTest("setWaitTestFail", setWaitFail, 5));
+        unitTestList.add(createTest("setTimeoutTestSuccess", setTimeoutSuccess, 6));
+        unitTestList.add(createTest("setTimeoutTestFail", setTimeoutFail, 5));
+        unitTestList.add(createTest("justBadArgs", badArgs1, 5));
+        unitTestList.add(createTest("notEnoughArgs",notEnoughArgs, 5));
+        unitTestList.add(createTest("badURL",badUrl, 3));        
+        unitTestList.add(createTest("WaitNoArg", wOptionNoArg, 5));
+        unitTestList.add(createTest("TimeoutNoArg",tOptionNoArg, 5));
+        
+
+
 
 
                 
