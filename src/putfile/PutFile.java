@@ -2,7 +2,6 @@ package putfile;
 
 //import android.util.Log;
 import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -79,10 +78,9 @@ public class PutFile implements Runnable {
             putFileTaskState = HTTP_CONNECTION_ERROR;
             return;            
         }        
-        // Download File
-        byte[] dlFile = null;
+        // Download and Write File
         try {
-            dlFile = downloadFile(urlConnection);
+            downloadFile(urlConnection, filePath);
         } catch (NoSuchAlgorithmException e) {
             // Unable to generate MD5, NBD
             Log.w(TAG, String.format("Unable to generate MD5 digest: %s", e));
@@ -91,6 +89,7 @@ public class PutFile implements Runnable {
             putFileTaskState = FILE_DOWNLOAD_ERROR;            
             return;
         }
+        /*
         // Write file to local storage
         try {
             writeFile(filePath, dlFile);
@@ -99,8 +98,8 @@ public class PutFile implements Runnable {
             putFileTaskState = WRITE_FILE_ERROR;
             return;
         }        
-        putFileTaskState = PUTFILE_SUCCESS;        
-    }
+        putFileTaskState = PUTFILE_SUCCESS;   */     
+    } 
 
     public void parseArgs(String[] args){        
         if(args.length < 2) {
@@ -225,8 +224,7 @@ public class PutFile implements Runnable {
                     argsValid = false;
                     return;                        
             }
-        }
-        
+        }        
     }
 
     private int checkIntArg(String arg){
@@ -286,29 +284,29 @@ public class PutFile implements Runnable {
         return urlConnection;
     }
 
-    public byte[] downloadFile(HttpURLConnection urlConnection) throws NoSuchAlgorithmException, IOException {
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+    public void downloadFile(HttpURLConnection urlConnection, String filePath) throws NoSuchAlgorithmException, IOException {
+        FileOutputStream out = new FileOutputStream(filePath);
         InputStream in = null;
         int nRead = 0;            
         int totalRead = 0;
         byte[] data = new byte[4096];        
+        MessageDigest md = MessageDigest.getInstance("MD5");
         in = new BufferedInputStream(urlConnection.getInputStream());                        
         while (nRead != -1) {
             nRead = in.read(data, 0, data.length);
             if(nRead == -1) {
                 break;
             }
-            buffer.write(data, 0, nRead);  
+            out.write(data, 0, nRead);  
             totalRead += nRead;
+            md.update(data, 0, nRead);
         }
         double downloaded = (double) totalRead / 1048576;
         Log.i(TAG, String.format("Retreived %.2f MB from target", downloaded));
-        // Calculate MD5 hash of the file.  This might not be necessary but I was bored.
-        MessageDigest md = MessageDigest.getInstance("MD5");
-        md.update(data);
         byte[] digest = md.digest();
         Log.i(TAG, String.format("File MD5 hash is %s", DatatypeConverter.printHexBinary(digest)));
-        return buffer.toByteArray();
+        out.close();
+        return;
     }
 
     public void writeFile(String path, byte[] file) throws FileNotFoundException, IOException {        

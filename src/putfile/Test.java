@@ -38,11 +38,13 @@ public class Test {
         "/home/parsons/tmp/waitFail.png", "-t", "130" };
 
     public Test() {                  
-        
+        /*
         unitTestList.add(createTest("basicTestNoFlags", noOptionsTestArgs, 6));
         unitTestList.add(createTest("fileOeverwriteFail",noOptionsTestArgs, 1));        
         unitTestList.add(createTest("mediumFileTest", mediumFileArgs, 6));
+        */
         unitTestList.add(createTest("largeFileTest", largeFileArgs, 6));
+        /*
         unitTestList.add(createTest("createDirsTestFail", createDirsFail, 1));
         unitTestList.add(createTest("createDirsTestSuccess", createDirsSuccess, 6));        
         unitTestList.add(createTest("fileOverwriteSuccess",fileOverwriteSuccess, 6));        
@@ -55,7 +57,7 @@ public class Test {
         unitTestList.add(createTest("badURL",badUrl, 3));        
         unitTestList.add(createTest("WaitNoArg", wOptionNoArg, 5));
         unitTestList.add(createTest("TimeoutNoArg",tOptionNoArg, 5));
-        
+        */
 
 
 
