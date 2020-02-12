@@ -31,32 +31,44 @@ public class PutFileRunner {
         int failed = 0;
         List<String> failedList = new ArrayList<String>();
         for (UnitTest ut : test.unitTestList) {
-            System.out.println(String.format("Running test %d of %d...", i, Test.unitTestList.size()));
+            System.out.println(String.format("Running test %d of %d...", i, test.unitTestList.size()));
             PutFile pf = new PutFile();
             pf.entryPoint(ut.args);
             if (pf.argsValid) {
-                pf.run();
+                try { 
+                    pf.run();
+                }
+                catch (Exception e) {
+                    System.out.println(String.format("Exception encountered in test %s: %s", ut.name, e));
+                    e.printStackTrace();                    
+                }
             }
-            if (pf.putFileTaskState != ut.expectedResults) {
-                failed++;
-                System.out.println(String.format("Test %d FAILED",i));
-                System.out.println(String.format("Expected result %d, got result %d\n.",ut.expectedResults, pf.putFileTaskState));
-                failedList.add(ut.name);
-            }
-            else {
-                passed++;
-                System.out.println(String.format("Test %d PASSED\n",i));
+            
+            for(PutFile.PutFileTask pft : pf.resultsList) {
+                int j = 0;
+                if ( pft.taskState != ut.expectedResults[j]) {
+                    failed++;
+                    System.out.println(String.format("Test %d FAILED",i));
+                    System.out.println(String.format("Expected result %d, got result %d\n.",ut.expectedResults[j], pft.taskState));
+                    failedList.add(ut.name);
+                }
+                else {
+                    passed++;
+                    System.out.println(String.format("Test %d PASSED\n",i));
+                }            
+                j++;
             }
             i++;
+            System.out.print(pf.ini);
+            System.out.println("\n=============================================\n");
         }
-        System.out.println(String.format("Final Results:\n\tRan %d test\n\tPASSED: %d\n\tFAILED: %d", Test.unitTestList.size(), passed, failed));
+        System.out.println(String.format("Final Results:\n\tRan %d test\n\tPASSED: %d\n\tFAILED: %d", test.unitTestList.size(), passed, failed));
         if (failedList.size() > 0) {
             System.out.println("The following tests failed:");
             for (String name : failedList) {
                 System.out.println(name);
             }
-        }
-        
+        }        
     }
 
     private static void preTest() {

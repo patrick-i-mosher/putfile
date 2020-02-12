@@ -3,7 +3,7 @@ package putfile;
 public class Log {
 
     public static void e(String tag, String msg) {
-        System.out.println(String.format("ERROR: %tc: %s: %s", System.currentTimeMillis(), tag, msg));
+        System.out.println();
         return;
     }
     public static void i(String tag, String msg) {
